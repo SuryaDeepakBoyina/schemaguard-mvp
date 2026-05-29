@@ -22,6 +22,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir /wheels/* \
     && rm -rf /wheels
 
+COPY observability ./observability
 COPY app ./app
 
 EXPOSE 8000
