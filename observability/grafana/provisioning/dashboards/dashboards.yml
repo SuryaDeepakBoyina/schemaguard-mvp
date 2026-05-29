@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: SchemaGuard
+    orgId: 1
+    folder: SchemaGuard
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

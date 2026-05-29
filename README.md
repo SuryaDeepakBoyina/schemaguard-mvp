@@ -2,6 +2,14 @@
 
 SchemaGuard Health AI is a FastAPI microservice for validating, enriching, and suggesting fixes for healthcare records in low-resource public health workflows. It is designed to plug into OpenMRS 3 as a companion service for quality checks, FHIR compatibility validation, and AI-assisted suggestions.
 
+## What’s Included
+
+- FastAPI backend with validation, suggestion, FHIR check, metrics, and health endpoints.
+- React + TypeScript frontend scaffold for interactive validation workflows.
+- Prometheus + Grafana observability stack with dashboard provisioning.
+- Locust load testing assets for throughput and latency checks.
+- GitHub Actions CI for backend tests, frontend build, and load-test execution.
+
 ## Architecture
 
 ```mermaid
@@ -23,6 +31,10 @@ The codebase follows a clean structure:
 - `app/routers/` for HTTP endpoints.
 - `app/services/` for validation, FHIR mapping, metrics, and AI orchestration.
 - `app/prompts/` for editable LLM prompts.
+- `frontend/` for the Vite + React + TypeScript UI.
+- `loadtests/` for Locust scenarios and scripts.
+- `observability/` for Prometheus and Grafana configuration.
+- `.github/workflows/` for CI automation.
 - `tests/` for endpoint and service coverage.
 
 ## Endpoints
@@ -36,13 +48,38 @@ The codebase follows a clean structure:
 
 ## Quick Start
 
+### Prerequisites
+
+On a Linux machine, install Docker Engine and the Compose plugin first, then verify the daemon is running:
+
+```bash
+docker --version
+docker compose version
+docker run --rm hello-world
+```
+
 ### Docker
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
-Then open `http://localhost:8000/docs`.
+Then open:
+
+- `http://localhost:8000/docs` for the API docs
+- `http://localhost:5173` for the frontend
+- `http://localhost:9090` for Prometheus
+- `http://localhost:3000` for Grafana
+
+### Full Stack
+
+The `docker-compose.yml` file starts the API, frontend, Prometheus, Grafana, and Locust services together.
+
+- Start the core stack with `docker compose up --build`.
+- Run the load-test container with `docker compose --profile loadtest up --build locust`.
+- Stop everything with `docker compose down`.
+
+If you only want the API and frontend, you can run the same `docker compose up --build` command and ignore the observability URLs.
 
 ### Local Development
 
@@ -51,6 +88,14 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
+
+To run the frontend separately:
+
+```bash
+cd frontend
+npm ci
+npm run dev
 ```
 
 ## Sample Requests
@@ -122,6 +167,8 @@ Environment variables:
 - `ENABLE_GZIP`: Enables response compression for large payloads.
 - `CORS_ORIGINS`: Comma-separated list of frontend origins.
 
+For local Docker Compose runs, the defaults work out of the box. You only need to set environment variables if you want to override the API key, FHIR version, timeout, or CORS settings.
+
 ## Metrics
 
 The `/metrics` endpoint returns Prometheus-style text, for example:
@@ -131,6 +178,12 @@ The `/metrics` endpoint returns Prometheus-style text, for example:
 # TYPE schema_guard_total_validations counter
 schema_guard_total_validations 12
 ```
+
+## Observability
+
+- `observability/prometheus.yml` configures Prometheus scraping for the API.
+- `observability/grafana/` provisions Grafana datasources and dashboards.
+- `docker-compose.yml` exposes Prometheus on `9090` and Grafana on `3000`.
 
 ## Testing
 
@@ -152,9 +205,32 @@ For load testing:
 locust -f load_test.py --host http://localhost:8000
 ```
 
+For the maintained load-test workflow:
+
+```bash
+bash loadtests/run_locust.sh http://localhost:8000
+```
+
+You can also start the interactive Locust UI through Compose:
+
+```bash
+docker compose --profile loadtest up --build locust
+```
+
+## CI
+
+GitHub Actions runs:
+
+- backend formatting, linting, and tests
+- frontend install, lint, and build
+- a short Locust smoke test against the API
+
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the exact pipeline.
+
 ## Troubleshooting
 
 - If port `8000` is already in use, stop the conflicting process or change the host port in `docker-compose.yml`.
+- If `docker` or `docker compose` is missing, install Docker Engine and the Compose plugin on your Linux host, then reopen the shell.
 - If AI suggestions are unavailable, check that `LLM_API_KEY` is set and reachable from the container.
 - If FHIR validation fails on a valid-looking record, inspect the mapped payload in `app/services/fhir_mapper.py` and verify the `fhir.resources` version.
 - If `/docs` does not load, confirm the container started successfully and that the app is listening on `0.0.0.0:8000`.
@@ -169,8 +245,7 @@ locust -f load_test.py --host http://localhost:8000
 
 ## Roadmap
 
-- Add Prometheus text-format metrics export.
 - Add ABDM-specific validation plugins such as Health ID checks.
-- Add a Grafana dashboard JSON example.
-- Add GitHub Actions for lint, test, image build, and registry publish.
-- Add a Locust load test for validation throughput.
+- Add richer frontend result views and review workflows.
+- Add more rule packs for additional OpenMRS and ABDM data shapes.
+- Add registry publishing when the release process is ready.

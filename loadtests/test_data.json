@@ -1,0 +1,110 @@
+{
+  "single_records": [
+    {
+      "id": "pat-001",
+      "name": "Asha Devi",
+      "age": 42,
+      "gender": "female",
+      "vitals": {"bp": "120/80", "pulse": 76},
+      "diagnoses": ["hypertension"]
+    },
+    {
+      "id": "pat-002",
+      "name": "Rahul Kumar",
+      "age": 58,
+      "gender": "male",
+      "vitals": {"bp": "140/90", "pulse": 84},
+      "diagnoses": ["type 2 diabetes"]
+    },
+    {
+      "id": "pat-003",
+      "name": "Sunita Patel",
+      "age": 29,
+      "gender": "female",
+      "vitals": {"bp": "110/72", "pulse": 70},
+      "diagnoses": []
+    }
+  ],
+  "batch_records": [
+    {
+      "id": "pat-101",
+      "name": "Patient A",
+      "age": 67,
+      "gender": "male",
+      "vitals": {"bp": "150/94", "pulse": 88},
+      "diagnoses": ["hypertension", "CKD"]
+    },
+    {
+      "id": "pat-102",
+      "name": "Patient B",
+      "age": 24,
+      "gender": "female",
+      "vitals": {"bp": "118/76", "pulse": 73},
+      "diagnoses": ["anemia"]
+    },
+    {
+      "id": "pat-103",
+      "name": "Patient C",
+      "age": 51,
+      "gender": "other",
+      "vitals": {"bp": "132/84", "pulse": 80},
+      "diagnoses": ["asthma"]
+    },
+    {
+      "id": "pat-104",
+      "name": "Patient D",
+      "age": 36,
+      "gender": "female",
+      "vitals": {"bp": "126/82", "pulse": 79},
+      "diagnoses": []
+    },
+    {
+      "id": "pat-105",
+      "name": "Patient E",
+      "age": 73,
+      "gender": "male",
+      "vitals": {"bp": "160/100", "pulse": 91},
+      "diagnoses": ["hypertension", "diabetes"]
+    },
+    {
+      "id": "pat-106",
+      "name": "Patient F",
+      "age": 18,
+      "gender": "female",
+      "vitals": {"bp": "112/70", "pulse": 68},
+      "diagnoses": ["malnutrition"]
+    },
+    {
+      "id": "pat-107",
+      "name": "Patient G",
+      "age": 44,
+      "gender": "male",
+      "vitals": {"bp": "135/88", "pulse": 82},
+      "diagnoses": ["obesity"]
+    },
+    {
+      "id": "pat-108",
+      "name": "Patient H",
+      "age": 60,
+      "gender": "female",
+      "vitals": {"bp": "145/92", "pulse": 86},
+      "diagnoses": ["hypertension"]
+    },
+    {
+      "id": "pat-109",
+      "name": "Patient I",
+      "age": 34,
+      "gender": "unknown",
+      "vitals": {"bp": "121/79", "pulse": 71},
+      "diagnoses": []
+    },
+    {
+      "id": "pat-110",
+      "name": "Patient J",
+      "age": 49,
+      "gender": "female",
+      "vitals": {"bp": "130/85", "pulse": 77},
+      "diagnoses": ["thyroid disorder"]
+    }
+  ]
+}

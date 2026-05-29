@@ -8,6 +8,7 @@ without changing the public API contract.
 from __future__ import annotations
 
 from typing import Any
+from dataclasses import asdict
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -59,4 +60,4 @@ async def validate_record(record: PatientRecord) -> ValidationResponse:
         fhir_compliant=result.fhir_compliant,
         has_errors=bool(result.issues),
     )
-    return ValidationResponse(**result.__dict__)
+    return ValidationResponse(**asdict(result))

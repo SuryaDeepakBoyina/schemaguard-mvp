@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'schemaguard-health-ai'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['schemaguard:8000']

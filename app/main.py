@@ -7,6 +7,7 @@ base HTTP configuration used by the rest of the service.
 from __future__ import annotations
 
 import logging
+import sqlite3
 import time
 import uuid
 from typing import Awaitable, Callable
@@ -39,7 +40,14 @@ def _dependency_status() -> dict[str, str]:
     except Exception:
         fhir_status = "missing"
 
-    return {"llm": llm_status, "fhir_validator": fhir_status, "db": "not_configured"}
+    try:
+        with sqlite3.connect(":memory:") as connection:
+            connection.execute("SELECT 1")
+        db_status = "up"
+    except Exception:
+        db_status = "down"
+
+    return {"llm": llm_status, "fhir_validator": fhir_status, "db": db_status}
 
 
 app = FastAPI(
