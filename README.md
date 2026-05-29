@@ -202,7 +202,7 @@ flake8 app tests
 For load testing:
 
 ```bash
-locust -f load_test.py --host http://localhost:8000
+locust -f loadtests/locustfile.py --host http://localhost:8000
 ```
 
 For the maintained load-test workflow:

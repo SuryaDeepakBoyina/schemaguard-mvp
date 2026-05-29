@@ -15,6 +15,28 @@ dist/
 
 # VS Code
 .vscode/
+.idea/
+
+# Python tooling caches
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Pytest cache
 .pytest_cache/
@@ -25,6 +47,9 @@ dist/
 # Docker
 *.tar
 docker-compose.override.yml
+
+# Load test outputs
+loadtest_results/
 
 # System files
 .DS_Store
