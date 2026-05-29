@@ -1,62 +1,241 @@
 # SchemaGuard Health AI
 
-SchemaGuard Health AI is a FastAPI microservice for validating, enriching, and suggesting fixes for healthcare records in low-resource public health workflows. It is designed to plug into OpenMRS 3 as a companion service for quality checks, FHIR compatibility validation, and AI-assisted suggestions.
+SchemaGuard Health AI is a FastAPI + React system for validating patient data, building FHIR R4 resources, and guiding clinicians or implementers toward cleaner OpenMRS and ABDM-aligned records.
 
-## What’s Included
+It is built around one idea: keep the base validation deterministic and lightweight, then use AI only as an assistive layer when the record needs a fix.
 
-- FastAPI backend for high-performance validation and FHIR mapping.
-- **Stylish & Responsive UI**: Premium glassmorphic React frontend with real-time feedback.
-- **AI-Assisted Fixes**: Intelligent suggestion engine via **Groq (Llama 3)** integration.
-- **FHIR Interoperability**: Automatic mapping to FHIR R4 Patient resources.
-- **Lightweight Observability**: Built-in Prometheus metrics and pre-configured Grafana dashboards.
-- **Deployment Ready**: Optimized for both Docker and local high-speed development.
+## What the project does
+
+- Validates patient records with profile-aware rules.
+- Builds FHIR Patient, Observation, Bundle, and OpenMRS mapping previews in the browser.
+- Surfaces quality issues with a live score.
+- Generates AI suggestions only when the data actually needs them.
+- Lets the user apply a suggestion directly to the record and immediately see the score update.
+- Exposes Prometheus metrics for monitoring.
+
+## System idea
+
+The application is designed for low-resource public health workflows where teams still need standards-compliant data.
+
+The backend acts as the source of truth for validation and scoring.
+The frontend is an interactive data builder and review surface.
+The AI layer is optional and only proposes corrections after the rules engine finds a gap.
+
+That gives you three things at once:
+
+1. deterministic validation,
+2. explainable remediation,
+3. FHIR-ready output that can be mapped into OpenMRS or other systems.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-	O3[OpenMRS 3 UI / Backend] --> API[FastAPI SchemaGuard Service]
-	API --> VAL[Validation Service]
-	API --> SUG[Suggestion Service]
-	API --> FHIR[FHIR Validation Service]
-	SUG --> LLM[External LLM API]
-	FHIR --> FHIRR4[FHIR Patient Model]
-	VAL --> MET[Metrics Service]
-	SUG --> MET
-	FHIR --> MET
+  U[Clinician / Data Entry User] --> FE[React Frontend]
+  FE -->|validate-record / validate-fhir| API[FastAPI Backend]
+  FE -->|fhir-check| FHIRAPI[FHIR Compatibility API]
+  API --> VS[Validation Service]
+  API --> FS[FHIR Mapper + FHIR Validation]
+  API --> SS[Suggestion Service]
+  SS --> LLM[External LLM Provider]
+  VS --> MET[Metrics Service]
+  FS --> MET
+  SS --> MET
+  API --> P[Prometheus / Grafana]
 ```
 
-The codebase follows a clean structure:
+### Frontend
 
-- `app/main.py` for app setup, middleware, and router registration.
-- `app/routers/` for HTTP endpoints.
-- `app/services/` for validation, FHIR mapping, metrics, and AI orchestration.
-- `app/prompts/` for editable LLM prompts.
-- `frontend/` for the Vite + React + TypeScript UI.
-- `loadtests/` for Locust scenarios and scripts.
-- `observability/` for Prometheus and Grafana configuration.
-- `tests/` for endpoint and service coverage.
+The frontend is a Vite + React + TypeScript app in [frontend/](frontend/).
 
-## Endpoints
+It contains:
 
-- `POST /validate-record` validates a patient record and returns a quality score, issue list, and FHIR compliance flag.
-- `POST /suggest-fixes` generates structured AI suggestions from raw record data and validation issues.
-- `POST /fhir-check` maps a record to a FHIR Patient resource and validates it with `fhir.resources`.
-- `GET /metrics` returns Prometheus exposition text for Grafana/Prometheus scraping.
-- `GET /health` returns dependency status for LLM, FHIR validation, and database readiness.
-- `GET /docs` exposes Swagger UI.
+- a FHIR Patient builder,
+- an Observation builder with terminology search,
+- an AI Suggestions panel,
+- a FHIRPath validation tree,
+- a quality score gauge,
+- an OpenMRS mapping preview,
+- a FHIR resource summary viewer.
 
-## Quick Start
+The frontend uses environment-driven FHIR server configuration and includes working HTTPS presets for HAPI FHIR, the OpenMRS demo, and SMART on FHIR.
 
-### Prerequisites
+### Backend
 
-On a Linux machine, install Docker Engine and the Compose plugin first, then verify the daemon is running:
+The backend is a FastAPI service in [app/](app/).
 
-```bash
-docker --version
-docker compose version
-docker run --rm hello-world
-```
+The main layers are:
+
+- [app/main.py](app/main.py) for app bootstrap, middleware, CORS, gzip, and route registration.
+- [app/routers/](app/routers/) for HTTP endpoints.
+- [app/services/](app/services/) for validation, FHIR mapping, AI orchestration, and metrics.
+- [app/schemas/](app/schemas/) for request and response models.
+- [app/prompts/](app/prompts/) for editable AI prompt text.
+
+### Concepts involved
+
+- FHIR R4: the application builds Patient, Observation, and Bundle data structures.
+- OpenMRS mapping: patient data is converted into a shape that can be sent to OpenMRS workflows.
+- ABDM profile awareness: the validator can surface ABHA-related guidance when the patient record is expected to follow ABDM-style rules.
+- Rule-based scoring: the score changes from validation findings, not from AI guessing.
+- Assistive AI: suggestions are only a helper, not the source of truth.
+- Observability: metrics are exposed for monitoring request volume and validation outcomes.
+
+## API endpoints
+
+### Validation
+
+- `POST /validate-record`
+  - Validates a legacy patient record.
+  - Returns `quality_score`, `issues`, `fhir_compliant`, `patient`, `observations`, `bundle`, `openmrs_mapping`, and `suggestions`.
+  - Used when the record is still in the simpler app-specific format.
+
+- `POST /validate-fhir`
+  - Validates a FHIR-native payload containing a Patient, Observation list, and optional Bundle.
+  - Used when the frontend or an integration already has FHIR-shaped data.
+
+### FHIR compatibility
+
+- `POST /fhir-check`
+  - Checks whether an input record can be mapped into a FHIR Patient payload.
+  - Returns a compatibility result used by the frontend and integration flows.
+
+### AI suggestions
+
+- `POST /suggest-fixes`
+  - Sends a record plus validation issues to the suggestion engine.
+  - Returns structured fix suggestions with confidence, example payloads, and an action payload when available.
+
+### Metrics and health
+
+- `GET /metrics`
+  - Returns Prometheus exposition text.
+
+- `GET /health`
+  - Returns service health and dependency status.
+
+- `GET /docs`
+  - FastAPI Swagger UI.
+
+## How the AI helps
+
+AI is not used to invent medical data or replace the rules engine.
+It is used to explain and suggest a safe next step after validation finds a problem.
+
+The suggestion flow works like this:
+
+1. The user edits the patient form or builder.
+2. The validator recalculates the score immediately.
+3. If the record is missing something important, the Suggestions panel shows a targeted fix.
+4. The user can click Apply to merge the fix into the record.
+5. The score updates right away after the fix is applied.
+
+This is especially visible for ABHA / ABDM-related guidance.
+When an ABDM-style patient profile is missing an ABHA identifier, the UI shows an ABHA-focused suggestion.
+For other non-ABDM FHIR profiles, that ABHA-specific suggestion does not appear.
+
+That keeps the AI behavior context-aware instead of noisy.
+
+## Frontend walkthrough
+
+### Patient builder
+
+The Patient Builder is a form-like workspace for editing:
+
+- patient ID,
+- gender,
+- birth date,
+- marital status,
+- identifiers,
+- names,
+- telecoms,
+- addresses,
+- contacts,
+- communications.
+
+It is structured as a multi-section form with repeatable cards for identifiers and names, which makes the builder feel closer to a clinical entry screen than a raw JSON editor.
+
+### Observation builder
+
+The Observation Builder lets you:
+
+- create blood pressure observations,
+- search terminology locally,
+- choose a code from the match list,
+- preview the selected code in a human-readable summary,
+- add custom coded observations,
+- remove observations and instantly see validation and score changes.
+
+The builder is laid out in sections for blood pressure, terminology search, and the active observation list.
+
+### AI suggestion panel
+
+The Suggestions panel shows:
+
+- the affected field,
+- a confidence value,
+- a short natural-language explanation,
+- an example payload,
+- an Apply button.
+
+For the ABHA suggestion shown in the screenshots, the panel presents the identifier system and a sample value, and the Apply button can insert it directly.
+
+### Quality score and validation
+
+The score gauge summarizes record quality in one place.
+
+In the current UX, removing a required FHIR element can immediately lower the score and trigger a matching suggestion.
+Applying the suggestion restores the missing data and the score updates immediately.
+
+That makes the score feel live and accurate instead of static.
+
+### FHIR resource viewer
+
+The resource viewer summarizes the bundle contents rather than dumping raw JSON.
+
+It shows:
+
+- patient summary,
+- observation count,
+- bundle type,
+- a compact entry list for each bundled resource.
+
+### FHIR server picker
+
+The frontend uses real HTTPS test endpoints instead of fictional URLs.
+
+Available presets:
+
+- HAPI FHIR Public Test: `https://hapi.fhir.org/baseR4`
+- OpenMRS Official Demo: `https://openmrs-spa.org/openmrs/ws/fhir2/R4`
+- SMART on FHIR Sandbox: `https://fhir.smarthealthit.org`
+
+The UI validates the entered URL and warns if the value is not HTTPS or if a localhost URL is used in production builds.
+
+## Repository structure
+
+- [app/main.py](app/main.py) bootstraps the FastAPI app.
+- [app/routers/](app/routers/) contains HTTP endpoints.
+- [app/services/](app/services/) contains validation, mapping, AI, and metrics logic.
+- [app/schemas/](app/schemas/) defines request and response models.
+- [frontend/](frontend/) contains the React UI and its builders.
+- [loadtests/](loadtests/) contains Locust load test scripts.
+- [observability/](observability/) contains Prometheus and Grafana config.
+- [tests/](tests/) contains backend test coverage.
+
+## OpenMRS integration idea
+
+The intended flow is:
+
+1. A user edits patient data in OpenMRS or in the SchemaGuard UI.
+2. The backend validates the data and calculates the quality score.
+3. If data is incomplete, the AI suggestion engine proposes a safe fix.
+4. The clinician or implementer applies the fix.
+5. The record can then be mapped into FHIR or OpenMRS workflows.
+
+This pattern is useful because it keeps the operational system conservative while still making the data entry experience smarter.
+
+## Quick start
 
 ### Docker
 
@@ -66,37 +245,31 @@ docker compose up --build
 
 Then open:
 
-- `http://localhost:8000/docs` for the API docs
-- `http://localhost:5173` for the frontend
-- `http://localhost:9090` for Prometheus
-- `http://localhost:3000` for Grafana
+- `http://localhost:8000/docs`
+- `http://localhost:5173`
+- `http://localhost:9090`
+- `http://localhost:3000`
 
-### Full Stack
+### Local development
 
-The `docker-compose.yml` file starts the API, frontend, Prometheus, Grafana, and Locust services together.
+Backend:
 
-- Start the core stack with `docker compose up --build`.
-- Run the load-test container with `docker compose --profile loadtest up --build locust`.
-- Stop everything with `docker compose down`.
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python3 -m app.main
+```
 
-If you only want the API and frontend, you can run the same `docker compose up --build` command and ignore the observability URLs.
+Frontend:
 
-### Local Development (High Speed)
-1. **Backend**:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   python3 -m app.main
-   ```
-2. **Frontend**:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## Sample Requests
+## Sample requests
 
 ### Validate a patient record
 
@@ -122,65 +295,12 @@ curl -X POST http://localhost:8000/fhir-check \
 	-d '{"record":{"id":"pat-001","name":"Asha Devi","age":42,"gender":"female"}}'
 ```
 
-## OpenMRS 3 Integration Notes
+## Metrics and observability
 
-### Backend pattern
+The service exposes Prometheus-compatible metrics and is wired for Grafana dashboards.
 
-OpenMRS 3 can call this service from a backend module or middleware layer when a patient form is saved. The backend should:
-
-1. Convert OpenMRS patient payloads into the service request format.
-2. Call `POST /validate-record` before persisting or synchronizing data.
-3. Call `POST /fhir-check` when exporting to FHIR/ABDM workflows.
-4. Call `POST /suggest-fixes` only when user review is required or when confidence is low.
-
-### Frontend pattern
-
-An OpenMRS 3 extension can call the service from a React widget or form action:
-
-1. Collect the patient payload from the UI state.
-2. Submit it to the validation endpoint.
-3. Display quality issues inline in the form.
-4. Surface AI suggestions behind an explicit clinician review action.
-
-This keeps the AI assistive and non-blocking, which is important for public health workflows where staff may need to continue with partial data.
-
-### O3 extension registration
-
-Register the widget as a standard OpenMRS 3 extension that opens a panel, toolbar action, or form helper. See the OpenMRS 3 extension documentation in the OpenMRS developer docs for the current extension points and manifest format.
-
-## Low-Resource Deployment
-
-- Designed to run without an LLM API key in validation-only mode.
-- Avoids heavy ML dependencies and keeps inference external.
-- Works well on a 2-core CPU and 2 GB RAM class server for light clinical loads.
-- Use response compression at your reverse proxy if you expect batch validation traffic.
-
-## Configuration
-
-Environment variables:
-
-- `LLM_API_KEY`: Enables AI suggestions through an external model provider.
-- `FHIR_VERSION`: Controls the FHIR target version used by your deployment process.
-- `REQUEST_TIMEOUT_SECONDS`: Default timeout for outbound AI calls.
-- `ENABLE_GZIP`: Enables response compression for large payloads.
-- `CORS_ORIGINS`: Comma-separated list of frontend origins.
-
-For local Docker Compose runs, the defaults work out of the box. You only need to set environment variables if you want to override the API key, FHIR version, timeout, or CORS settings.
-
-## Metrics
-
-The `/metrics` endpoint returns Prometheus-style text, for example:
-
-```text
-# HELP schema_guard_total_validations Total validation requests processed.
-# TYPE schema_guard_total_validations counter
-schema_guard_total_validations 12
-```
-
-## Observability
-
-- `observability/prometheus.yml` configures Prometheus scraping for the API.
-- `observability/grafana/` provisions Grafana datasources and dashboards.
+- `observability/prometheus.yml` configures scraping.
+- `observability/grafana/` provisions dashboards and datasources.
 - `docker-compose.yml` exposes Prometheus on `9090` and Grafana on `3000`.
 
 ## Testing
@@ -203,46 +323,15 @@ For load testing:
 locust -f loadtests/locustfile.py --host http://localhost:8000
 ```
 
-For the maintained load-test workflow:
+## Notes
 
-```bash
-bash loadtests/run_locust.sh http://localhost:8000
-```
-
-You can also start the interactive Locust UI through Compose:
-
-```bash
-docker compose --profile loadtest up --build locust
-```
-
-## CI
-
-GitHub Actions runs:
-
-- backend formatting, linting, and tests
-- frontend install, lint, and build
-- a short Locust smoke test against the API
-
+- The AI layer is optional and can be disabled by leaving `LLM_API_KEY` unset.
+- FHIR and ABDM guidance is profile-aware, so ABHA suggestions appear only when the record context calls for them.
+- The frontend is meant to look and feel like a clinical builder, not a raw JSON editor.
 
 ## Troubleshooting
 
-- If port `8000` is already in use, stop the conflicting process or change the host port in `docker-compose.yml`.
-- If `docker` or `docker compose` is missing, install Docker Engine and the Compose plugin on your Linux host, then reopen the shell.
 - If AI suggestions are unavailable, check that `LLM_API_KEY` is set and reachable from the container.
-- If FHIR validation fails on a valid-looking record, inspect the mapped payload in `app/services/fhir_mapper.py` and verify the `fhir.resources` version.
+- If FHIR validation fails on a valid-looking record, inspect the mapped payload in [app/services/fhir_mapper.py](app/services/fhir_mapper.py).
+- If the frontend warns about the server URL, use one of the HTTPS presets or set `VITE_FHIR_SERVER_URL`.
 - If `/docs` does not load, confirm the container started successfully and that the app is listening on `0.0.0.0:8000`.
-
-## Contribution Guide
-
-1. Open an issue before larger changes so the workflow stays visible.
-2. Keep changes focused and small enough to review quickly.
-3. Add or update tests for any behavior change.
-4. Use clear commit messages and include reproduction steps in PR descriptions.
-5. Follow the existing code style and keep functions typed and documented.
-
-## Roadmap
-
-- Add ABDM-specific validation plugins such as Health ID checks.
-- Add richer frontend result views and review workflows.
-- Add more rule packs for additional OpenMRS and ABDM data shapes.
-- Add registry publishing when the release process is ready.
