@@ -56,4 +56,5 @@ loadtest_results/
 Thumbs.db
 
 # GitHub actions artifacts
-.github/workflows/*.bak
+# Local secrets
+.env

@@ -4,11 +4,12 @@ SchemaGuard Health AI is a FastAPI microservice for validating, enriching, and s
 
 ## What’s Included
 
-- FastAPI backend with validation, suggestion, FHIR check, metrics, and health endpoints.
-- React + TypeScript frontend scaffold for interactive validation workflows.
-- Prometheus + Grafana observability stack with dashboard provisioning.
-- Locust load testing assets for throughput and latency checks.
-- GitHub Actions CI for backend tests, frontend build, and load-test execution.
+- FastAPI backend for high-performance validation and FHIR mapping.
+- **Stylish & Responsive UI**: Premium glassmorphic React frontend with real-time feedback.
+- **AI-Assisted Fixes**: Intelligent suggestion engine via **Groq (Llama 3)** integration.
+- **FHIR Interoperability**: Automatic mapping to FHIR R4 Patient resources.
+- **Lightweight Observability**: Built-in Prometheus metrics and pre-configured Grafana dashboards.
+- **Deployment Ready**: Optimized for both Docker and local high-speed development.
 
 ## Architecture
 
@@ -81,22 +82,20 @@ The `docker-compose.yml` file starts the API, frontend, Prometheus, Grafana, and
 
 If you only want the API and frontend, you can run the same `docker compose up --build` command and ignore the observability URLs.
 
-### Local Development
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-To run the frontend separately:
-
-```bash
-cd frontend
-npm ci
-npm run dev
-```
+### Local Development (High Speed)
+1. **Backend**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   python3 -m app.main
+   ```
+2. **Frontend**:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
 ## Sample Requests
 

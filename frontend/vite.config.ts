@@ -7,11 +7,11 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     proxy: {
-      '/validate-record': 'http://schemaguard:8000',
-      '/suggest-fixes': 'http://schemaguard:8000',
-      '/fhir-check': 'http://schemaguard:8000',
-      '/metrics': 'http://schemaguard:8000',
-      '/health': 'http://schemaguard:8000'
+      '/validate-record': 'http://localhost:8000',
+      '/suggest-fixes': 'http://localhost:8000',
+      '/fhir-check': 'http://localhost:8000',
+      '/metrics': 'http://localhost:8000',
+      '/health': 'http://localhost:8000'
     }
   }
 });

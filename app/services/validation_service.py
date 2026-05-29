@@ -41,9 +41,16 @@ class ValidationService:
         score = 100
 
         for field in self.required_fields:
-            if record.get(field) in (None, ""):
+            value = record.get(field)
+            if value in (None, ""):
                 issues.append(f"Missing required field: {field}")
                 score -= 20
+            elif field == "id" and len(str(value)) < 3:
+                issues.append("Identifier is too short (minimum 3 characters)")
+                score -= 10
+            elif field == "name" and len(str(value)) < 2:
+                issues.append("Name is too short (minimum 2 characters)")
+                score -= 10
 
         age = record.get("age")
         if isinstance(age, int):

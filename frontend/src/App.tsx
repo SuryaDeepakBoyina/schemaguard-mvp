@@ -1,5 +1,11 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { apiClient, ValidationRecord, ValidationResponse } from './services/api';
+import {
+  apiClient,
+  ValidationRecord,
+  ValidationResponse,
+  SuggestionResponse,
+  FHIRCheckResponse
+} from './services/api';
 
 const initialRecord: ValidationRecord = {
   id: 'pat-001',
@@ -12,153 +18,236 @@ const initialRecord: ValidationRecord = {
 
 export default function App() {
   const [record, setRecord] = useState<ValidationRecord>(initialRecord);
-  const [result, setResult] = useState<ValidationResponse | null>(null);
+  const [validation, setValidation] = useState<ValidationResponse | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestionResponse | null>(null);
+  const [fhir, setFhir] = useState<FHIRCheckResponse | null>(null);
+
   const [loading, setLoading] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [fhirLoading, setFhirLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const qualityLabel = useMemo(() => {
-    if (!result) return 'Awaiting validation';
-    if (result.quality_score >= 80) return 'High quality';
-    if (result.quality_score >= 50) return 'Needs review';
-    return 'Low quality';
-  }, [result]);
+    if (!validation) return 'Awaiting validation';
+    const score = validation.quality_score;
+    if (score >= 80) return 'High Quality';
+    if (score >= 50) return 'Needs Review';
+    return 'Low Quality';
+  }, [validation]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const scoreColor = useMemo(() => {
+    if (!validation) return 'var(--text-muted)';
+    const score = validation.quality_score;
+    if (score >= 80) return 'var(--accent-success)';
+    if (score >= 50) return 'var(--accent-warning)';
+    return 'var(--accent-danger)';
+  }, [validation]);
+
+  async function handleValidate(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
+    setValidation(null);
+    setSuggestions(null);
+    setFhir(null);
     setError(null);
 
     try {
-      const response = await apiClient.validateRecord(record);
-      setResult(response);
+      const res = await apiClient.validateRecord(record);
+      setValidation(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Validation request failed');
+      setError(err instanceof Error ? err.message : 'Validation failed');
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleGetSuggestions() {
+    if (!validation) return;
+    setSuggesting(true);
+    try {
+      const res = await apiClient.suggestFixes(record, validation.issues);
+      setSuggestions(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Suggestions failed');
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  async function handleFhirCheck() {
+    setFhirLoading(true);
+    try {
+      const res = await apiClient.fhirCheck(record);
+      setFhir(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'FHIR check failed');
+    } finally {
+      setFhirLoading(false);
+    }
+  }
+
   return (
     <main className="app-shell">
-      <section className="hero">
+      <header className="hero">
         <p className="eyebrow">SchemaGuard Health AI</p>
-        <h1>Validate patient records with clear, low-friction feedback.</h1>
+        <h1>Ensuring Data Integrity for Better Health.</h1>
         <p className="subtitle">
-          React + TypeScript frontend for OpenMRS-style workflows. Submit a patient payload and inspect
-          quality score, issues, and FHIR readiness.
+          AI-assisted validation, FHIR compatibility checks, and intelligent record enrichment
+          designed for low-resource clinical environments.
         </p>
-      </section>
+      </header>
 
-      <section className="panel-grid">
-        <form className="card form-card" onSubmit={handleSubmit}>
-          <h2>Validation Form</h2>
+      <div className="panel-grid">
+        <form className="card form-card" onSubmit={handleValidate}>
+          <h2>Patient Record</h2>
 
           <label>
-            Patient ID
+            Identifier
             <input
               value={record.id}
-              onChange={(event) => setRecord({ ...record, id: event.target.value })}
+              onChange={e => setRecord({ ...record, id: e.target.value })}
               required
             />
           </label>
 
           <label>
-            Name
+            Full Name
             <input
               value={record.name}
-              onChange={(event) => setRecord({ ...record, name: event.target.value })}
+              onChange={e => setRecord({ ...record, name: e.target.value })}
               required
+              placeholder="e.g. John Doe"
             />
           </label>
 
-          <label>
-            Age
-            <input
-              type="number"
-              value={record.age}
-              onChange={(event) => setRecord({ ...record, age: Number(event.target.value) })}
-              min={0}
-              max={150}
-              required
-            />
-          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <label>
+              Age
+              <input
+                type="number"
+                value={record.age === 0 ? '' : record.age}
+                onChange={e => {
+                  const val = e.target.value;
+                  setRecord({ ...record, age: val === '' ? 0 : Number(val) });
+                }}
+                required
+                min="0"
+                max="120"
+                placeholder="0-120"
+              />
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Range: 0-120</span>
+            </label>
+            <label>
+              Gender
+              <select
+                value={record.gender}
+                onChange={e => setRecord({ ...record, gender: e.target.value as any })}
+              >
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="other">Other</option>
+                <option value="unknown">Unknown</option>
+              </select>
+            </label>
+          </div>
 
           <label>
-            Gender
-            <select
-              value={record.gender}
-              onChange={(event) => setRecord({ ...record, gender: event.target.value as ValidationRecord['gender'] })}
-            >
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="other">Other</option>
-              <option value="unknown">Unknown</option>
-            </select>
-          </label>
-
-          <label>
-            Vitals JSON
+            Vitals (JSON)
             <textarea
+              rows={4}
               value={JSON.stringify(record.vitals, null, 2)}
-              onChange={(event) => {
+              onChange={e => {
                 try {
-                  setRecord({ ...record, vitals: JSON.parse(event.target.value) as Record<string, unknown> });
-                  setError(null);
-                } catch {
-                  setError('Vitals must be valid JSON');
-                }
+                  setRecord({ ...record, vitals: JSON.parse(e.target.value) });
+                } catch { /* wait for valid json */ }
               }}
-              rows={5}
-            />
-          </label>
-
-          <label>
-            Diagnoses (comma separated)
-            <input
-              value={record.diagnoses.join(', ')}
-              onChange={(event) =>
-                setRecord({
-                  ...record,
-                  diagnoses: event.target.value
-                    .split(',')
-                    .map((item) => item.trim())
-                    .filter(Boolean)
-                })
-              }
             />
           </label>
 
           <button type="submit" disabled={loading}>
             {loading ? 'Validating...' : 'Validate Record'}
           </button>
+
+          {validation && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleFhirCheck}
+              disabled={fhirLoading}
+            >
+              {fhirLoading ? 'Mapping...' : 'Generate FHIR Resource'}
+            </button>
+          )}
         </form>
 
-        <aside className="card results-card">
-          <h2>Results</h2>
-          <div className="badge-row">
-            <span className="badge">{qualityLabel}</span>
-            <span className={`badge ${result?.fhir_compliant ? 'success' : 'warning'}`}>
-              {result ? (result.fhir_compliant ? 'FHIR compliant' : 'FHIR issues') : 'FHIR pending'}
-            </span>
-          </div>
+        <section className="results-pane">
+          <div className="card">
+            <h2>Analysis Summary</h2>
+            <div className="badge-row">
+              <span className="badge" style={{ color: scoreColor }}>{qualityLabel}</span>
+              {validation?.fhir_compliant && <span className="badge success">FHIR Ready</span>}
+              {fhir?.valid && <span className="badge success">R4 Validated</span>}
+            </div>
 
-          {error ? <p className="error">{error}</p> : null}
+            {error && <div className="error">{error}</div>}
 
-          {result ? (
-            <>
-              <p className="score">Quality score: {result.quality_score}/100</p>
-              <ul className="issue-list">
-                {result.issues.length === 0 ? <li>No issues found.</li> : null}
-                {result.issues.map((issue) => (
-                  <li key={issue}>{issue}</li>
+            {validation ? (
+              <>
+                <p className="score" style={{ color: scoreColor }}>
+                  {validation.quality_score}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/100</span>
+                </p>
+
+                <ul className="issue-list">
+                  {validation.issues.length === 0 ? (
+                    <li style={{ borderColor: 'var(--accent-success)' }}>No data quality issues detected.</li>
+                  ) : (
+                    validation.issues.map((msg, i) => <li key={i}>{msg}</li>)
+                  )}
+                </ul>
+
+                {validation.issues.length > 0 && !suggestions && (
+                  <button
+                    onClick={handleGetSuggestions}
+                    className="secondary-button"
+                    disabled={suggesting}
+                    style={{ marginTop: '2rem' }}
+                  >
+                    {suggesting ? 'Generating AI fixes...' : 'Ask AI for Fixes'}
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="muted">Enter record details and click Validate to begin.</p>
+            )}
+
+            {suggestions && (
+              <div className="suggestion-section">
+                <h3>AI Suggestions</h3>
+                {suggestions.suggestions.map((s, i) => (
+                  <div key={i} className="suggestion-card">
+                    <div className="field-name">{s.field}</div>
+                    <div className="diff">
+                      <span className="old">{String(s.original)}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>→</span>
+                      <span className="new">{String(s.suggested)}</span>
+                    </div>
+                    <p className="reason">{s.reason}</p>
+                  </div>
                 ))}
-              </ul>
-            </>
-          ) : (
-            <p className="muted">Submit the form to see validation feedback.</p>
-          )}
-        </aside>
-      </section>
+              </div>
+            )}
+
+            {fhir && (
+              <div className="suggestion-section">
+                <h3>FHIR Resource (Patient)</h3>
+                <pre className="fhir-preview">
+                  {JSON.stringify(fhir.resource, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
