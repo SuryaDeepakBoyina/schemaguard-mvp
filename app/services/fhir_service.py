@@ -8,13 +8,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from fhir.resources.patient import Patient
-
 from app.services.fhir_mapper import FHIRMapper
+from app.services.validation_service import ValidationService
 
 
 class FHIRValidationService:
     """Validate application records against the FHIR Patient resource model."""
+
+    def __init__(self) -> None:
+        self.validation_service = ValidationService()
 
     def check(self, record: dict[str, Any]) -> dict[str, Any]:
         """Validate a record after mapping it to a FHIR Patient resource.
@@ -26,28 +28,17 @@ class FHIRValidationService:
             A dictionary containing validity state, missing fields, and notes.
         """
 
-        missing_required = [field for field in FHIRMapper.required_fields() if not record.get(field)]
-        mapped = FHIRMapper.map_patient(record)
-        mapping_notes = "Mapped OpenMRS-style patient data to FHIR Patient resource."
-
-        if missing_required:
-            return {
-                "is_valid": False,
-                "missing_required": missing_required,
-                "mapping_notes": mapping_notes,
-            }
-
-        try:
-            Patient(**mapped)
-        except Exception as exc:  # pragma: no cover - library-specific validation failures
-            return {
-                "is_valid": False,
-                "missing_required": [],
-                "mapping_notes": f"FHIR Patient validation failed: {exc}",
-            }
+        legacy_record = record.get("record") if isinstance(record.get("record"), dict) else record
+        detailed = self.validation_service.validate_fhir_payload(FHIRMapper.coerce_request(record))
+        missing_required = [field for field in FHIRMapper.required_fields() if not legacy_record.get(field)]
 
         return {
-            "is_valid": True,
-            "missing_required": [],
-            "mapping_notes": mapping_notes,
+            "is_valid": detailed.fhir_compliant and not missing_required,
+            "missing_required": missing_required,
+            "mapping_notes": "Mapped OpenMRS-style patient data to FHIR Patient resource.",
+            "issues": [issue.model_dump() for issue in detailed.issues],
+            "profile": detailed.profile,
+            "patient": detailed.patient.model_dump() if detailed.patient else None,
+            "observations": [observation.model_dump() for observation in detailed.observations],
+            "bundle": detailed.bundle.model_dump() if detailed.bundle else None,
         }

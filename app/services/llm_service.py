@@ -33,14 +33,15 @@ class SuggestionResult:
 class BaseLLMService(abc.ABC):
     """Shared helpers for concrete LLM service implementations."""
 
-    def _fallback(self, record: dict[str, Any], issues: list[str]) -> dict[str, Any]:
+    def _fallback(self, record: dict[str, Any], issues: list[Any]) -> dict[str, Any]:
         """Return a deterministic suggestion payload when no model is available."""
 
         suggestions: list[dict[str, Any]] = []
         for issue in issues:
             # Try to guess the field from common patterns
             field = "unknown"
-            issue_lower = issue.lower()
+            issue_text = issue if isinstance(issue, str) else str(issue)
+            issue_lower = issue_text.lower()
             if "age" in issue_lower:
                 field = "age"
             elif "gender" in issue_lower:
@@ -48,18 +49,19 @@ class BaseLLMService(abc.ABC):
             elif "name" in issue_lower:
                 field = "name"
             elif "id" in issue_lower or "identifier" in issue_lower:
-                field = "id"
-            elif "vital" in issue_lower:
-                field = "vitals"
+                field = "identifier"
+            elif "vital" in issue_lower or "observation" in issue_lower:
+                field = "observations"
 
             suggestions.append(
                 {
                     "field": field,
-                    "original": record.get(field),
+                    "original": record.get(field) if isinstance(record, dict) else None,
                     "suggested": None,
-                    "reason": issue,
+                    "reason": issue_text,
                     "confidence": 0.0,
                     "needs_review": True,
+                    "suggestion": issue_text,
                 }
             )
         return {"suggestions": suggestions}
@@ -79,13 +81,12 @@ class GroqLLMService(BaseLLMService):
             return self._fallback(record, issues)
 
         system_prompt = (
-            "You are a healthcare data quality assistant. "
-            "Analyze the provided patient record and the list of validation issues. "
+            "You are a FHIR-aware healthcare data quality assistant. "
+            "Analyze the provided Patient, Observation, or Bundle payload and the list of validation issues. "
             "Return a JSON object with a 'suggestions' list. "
-            "Each suggestion MUST include: 'field' (the specific key in the record), "
-            "'original' (the current value), 'suggested' (the corrected value), "
-            "'reason' (why you made the change), and 'confidence' (0.0 to 1.0). "
-            "If an issue is 'Age must be between 0 and 120', the field is 'age'."
+            "Each suggestion MUST include: 'field', 'original', 'suggested', 'reason', and 'confidence'. "
+            "Prefer FHIRPath-style fields such as Patient.identifier[0].system, Observation.code.coding[0].code, or Bundle.entry[0].resource. "
+            "When you suggest a change, keep terminology standards in mind: LOINC for observations, SNOMED-CT for problems, and UCUM for units."
         )
 
         payload = {

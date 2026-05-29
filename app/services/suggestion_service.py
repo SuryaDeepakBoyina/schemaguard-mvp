@@ -24,7 +24,7 @@ class SuggestionService:
 
         return self.prompt_path.read_text(encoding="utf-8")
 
-    async def suggest_fixes(self, record: dict[str, Any], issues: list[str]) -> dict[str, Any]:
+    async def suggest_fixes(self, record: dict[str, Any], issues: list[Any]) -> dict[str, Any]:
         """Return structured suggestion data for the provided record."""
 
         cache_key = hashlib.sha256(json.dumps({"record": record, "issues": issues}, sort_keys=True).encode()).hexdigest()
