@@ -1,0 +1,9 @@
+services:
+  schemaguard:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - FHIR_VERSION=${FHIR_VERSION:-R4}
+    restart: unless-stopped
