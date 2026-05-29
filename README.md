@@ -35,7 +35,6 @@ The codebase follows a clean structure:
 - `frontend/` for the Vite + React + TypeScript UI.
 - `loadtests/` for Locust scenarios and scripts.
 - `observability/` for Prometheus and Grafana configuration.
-- `.github/workflows/` for CI automation.
 - `tests/` for endpoint and service coverage.
 
 ## Endpoints
@@ -224,7 +223,6 @@ GitHub Actions runs:
 - frontend install, lint, and build
 - a short Locust smoke test against the API
 
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the exact pipeline.
 
 ## Troubleshooting
 

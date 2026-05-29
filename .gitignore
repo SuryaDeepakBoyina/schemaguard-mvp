@@ -56,9 +56,7 @@ loadtest_results/
 .DS_Store
 Thumbs.db
 
-# GitHub actions artifacts
 # Local secrets
 .env
 
 .devcontainer/
-.github/workflows/
